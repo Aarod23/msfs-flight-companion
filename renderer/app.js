@@ -153,24 +153,35 @@ function calcProgress(state) {
 }
 
 // ── Format Helpers ─────────────────────────────────────────────────────
-function fmtTime(ts) {
-  if (!ts) return '——:——';
-  const d = new Date(typeof ts === 'string' ? ts : ts);
-  return d.toISOString().substr(11, 5);
+function fmtISO(isoStr) {
+  if (!isoStr) return '——:——';
+  try {
+    const d = new Date(isoStr);
+    return d.toISOString().substr(11, 5) + 'Z';
+  } catch { return '——:——'; }
 }
 
-function fmtDuration(ms) {
-  if (!ms || ms < 0) return '——h——m';
-  const h = Math.floor(ms / 3_600_000);
-  const m = Math.floor((ms % 3_600_000) / 60_000);
+function fmtTS(ms) {
+  if (!ms) return '——:——';
+  try {
+    return new Date(ms).toISOString().substr(11, 5) + 'Z';
+  } catch { return '——:——'; }
+}
+
+function fmtDuration(seconds) {
+  if (!seconds || seconds < 0) return '——h ——m';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
   return `${h}h ${String(m).padStart(2,'0')}m`;
 }
 
 function fmtDelay(ms) {
-  if (!ms) return '——';
-  const sign = ms >= 0 ? '+' : '';
+  if (ms === null || ms === undefined) return '——';
+  const sign = ms >= 0 ? '+' : '-';
   const abs = Math.abs(ms);
-  const m = Math.floor(abs / 60_000);
+  const h = Math.floor(abs / 3_600_000);
+  const m = Math.floor((abs % 3_600_000) / 60_000);
+  if (h > 0) return `${sign}${h}h${String(m).padStart(2,'0')}m`;
   return `${sign}${m}m`;
 }
 
@@ -231,35 +242,57 @@ function updateUI(s) {
 
   // Times
   const sb = s.simbrief;
-  const std = sb ? new Date(sb.times.std).getTime() : null;
-  const sta = sb ? new Date(sb.times.sta).getTime() : null;
-  document.getElementById('t-std').textContent = fmtTime(sb?.times.std);
-  document.getElementById('t-sta').textContent = fmtTime(sb?.times.sta);
-  document.getElementById('t-atd').textContent = fmtTime(s.atd);
+  document.getElementById('t-std').textContent = fmtISO(sb?.times.std);
+  document.getElementById('t-sta').textContent = fmtISO(sb?.times.sta);
+  document.getElementById('t-atd').textContent = fmtTS(s.atd);
 
   const eta = calcETA(s);
-  document.getElementById('t-eta').textContent = fmtTime(eta);
-  document.getElementById('t-remaining').textContent = eta ? fmtDuration(eta - Date.now()) : '——h——m';
+  document.getElementById('t-eta').textContent = eta ? new Date(eta).toISOString().substr(11,5)+'Z' : '——:——';
+
+  const remainMs = eta ? eta - Date.now() : null;
+  document.getElementById('t-remaining').textContent = remainMs ? fmtDuration(remainMs / 1000) : '——h——m';
 
   const elapsed = s.atd ? Date.now() - s.atd : null;
-  document.getElementById('t-elapsed').textContent = elapsed ? fmtDuration(elapsed) : '——:——';
+  document.getElementById('t-elapsed').textContent = elapsed ? fmtDuration(elapsed / 1000) : '——:——';
 
-  const delay = (s.atd && std) ? s.atd - std : null;
-  document.getElementById('t-delay').textContent = delay !== null ? fmtDelay(delay) : '——';
-  document.getElementById('t-delay').style.color = delay > 0 ? 'var(--red)' : delay < 0 ? 'var(--green)' : 'var(--text-secondary)';
+  // Delay: ATD vs STD (both as timestamps)
+  let delay = null;
+  if (s.atd && sb?.times.std) {
+    const stdMs = new Date(sb.times.std).getTime();
+    delay = s.atd - stdMs; // positive = late, negative = early
+  }
+  document.getElementById('t-delay').textContent = delay !== null ? fmtDelay(delay) : 'On Time';
+  document.getElementById('t-delay').style.color =
+    delay === null ? 'var(--text-secondary)' :
+    delay > 300000 ? 'var(--red)' :
+    delay < -60000 ? 'var(--green)' : 'var(--text-secondary)';
 
   // Fuel gauge
+  // SimConnect gives fuel in gallons. SimBrief block fuel is in lbs (if units=lbs) or kgs.
+  // 1 gal JetA ≈ 6.7 lbs. Convert SimConnect gallons → lbs to compare.
   if (sb) {
     const rem = s.fuel || 0;
-    const block = sb.fuel.block || 1;
-    const fuelPct = Math.min(100, (rem / block) * 100 * 6.7); // approx gal to match units
-    document.getElementById('fuel-bar-fill').style.width = Math.min(100, Math.max(0, fuelPct)) + '%';
-    document.getElementById('fuel-rem-label').textContent = `${Math.round(rem)} gal remaining`;
-    document.getElementById('fuel-trip-label').textContent = `Trip: ${sb.fuel.trip} ${sb.fuel.units}`;
-    document.getElementById('fuel-reserve').textContent = `${sb.fuel.reserve} ${sb.fuel.units}`;
+    const remLbs = rem * 6.7; // gallons → lbs
+    const blockLbs = sb.fuel.block || 1;
+    const fuelPct = Math.min(100, Math.max(0, (remLbs / blockLbs) * 100));
+
+    const fillEl = document.getElementById('fuel-bar-fill');
+    fillEl.style.width = fuelPct + '%';
+    fillEl.className = 'fuel-bar-fill' + (fuelPct < 15 ? ' low' : fuelPct < 30 ? ' medium' : '');
+
+    document.getElementById('fuel-rem-label').textContent = `${Math.round(rem).toLocaleString()} gal (${Math.round(remLbs).toLocaleString()} lbs)`;
+    document.getElementById('fuel-trip-label').textContent = `Trip: ${sb.fuel.trip.toLocaleString()} ${sb.fuel.units}`;
+    document.getElementById('fuel-reserve').textContent = `${sb.fuel.reserve.toLocaleString()} ${sb.fuel.units}`;
+
+    // Estimated fuel at destination
     const etaSeconds = eta ? (eta - Date.now()) / 1000 : null;
-    // Estimate: if we know burn rate we'd use it. Approximate.
-    document.getElementById('fuel-dest').textContent = etaSeconds ? `~${Math.max(0,Math.round(rem - (sb.fuel.trip / (sb.times.ete || 3600)) * etaSeconds))} gal` : '——';
+    if (etaSeconds && sb.times.ete > 0) {
+      const burnRate = sb.fuel.trip / sb.times.ete; // lbs/sec
+      const remAtDest = Math.max(0, Math.round(remLbs - burnRate * etaSeconds));
+      document.getElementById('fuel-dest').textContent = `~${remAtDest.toLocaleString()} lbs`;
+    } else {
+      document.getElementById('fuel-dest').textContent = '——';
+    }
   }
 
   // Map coords
@@ -267,7 +300,7 @@ function updateUI(s) {
     const latStr = (s.lat >= 0 ? s.lat.toFixed(4) + '°N' : Math.abs(s.lat).toFixed(4) + '°S');
     const lonStr = (s.lon >= 0 ? s.lon.toFixed(4) + '°E' : Math.abs(s.lon).toFixed(4) + '°W');
     document.getElementById('map-coords').textContent = `${latStr}  ${lonStr}`;
-    document.getElementById('map-sim-time').textContent = fmtTime(Date.now()) + 'Z';
+    document.getElementById('map-sim-time').textContent = new Date().toISOString().substr(11,5) + 'Z';
 
     updateAircraftMarker(s.lat, s.lon, s.hdg || 0);
     updateTrail(s.lat, s.lon);

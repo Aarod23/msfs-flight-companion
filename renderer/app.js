@@ -35,19 +35,47 @@ function initMap() {
 }
 
 function createAircraftIcon(heading) {
+  // Realistic top-down commercial airliner (narrow-body style)
+  // Nose points UP at heading 0, rotated by actual magnetic heading
   const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-      <g transform="rotate(${heading}, 16, 16)">
-        <path d="M16 2 L20 14 L28 12 L26 16 L20 16 L21 24 L24 25 L24 27 L16 25 L8 27 L8 25 L11 24 L12 16 L6 16 L4 12 L12 14 Z"
-          fill="#4a9eff" opacity="0.95"/>
-        <circle cx="16" cy="16" r="2.5" fill="white" opacity="0.8"/>
+    <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44">
+      <defs>
+        <filter id="ac-shadow">
+          <feDropShadow dx="0" dy="0" stdDeviation="2.2" flood-color="rgba(255,255,255,0.4)"/>
+        </filter>
+      </defs>
+      <g transform="rotate(${heading}, 22, 22)" filter="url(#ac-shadow)">
+        <!-- Fuselage body -->
+        <ellipse cx="22" cy="22" rx="2.6" ry="14" fill="white" opacity="0.97"/>
+        <!-- Nose point -->
+        <path d="M22 7 C20.4 9.5 19.6 11.5 22 12.5 C24.4 11.5 23.6 9.5 22 7Z" fill="white"/>
+        <!-- Left main wing -->
+        <path d="M20.2 19.5 L3.5 26.5 L4.2 29 L21 23.5Z" fill="white" opacity="0.94"/>
+        <!-- Right main wing -->
+        <path d="M23.8 19.5 L40.5 26.5 L39.8 29 L23 23.5Z" fill="white" opacity="0.94"/>
+        <!-- Wing root fairing -->
+        <ellipse cx="22" cy="21.5" rx="3.4" ry="2.4" fill="white"/>
+        <!-- Left engine nacelle -->
+        <rect x="7" y="25" width="6" height="2.5" rx="1.25" fill="white" opacity="0.82"/>
+        <!-- Right engine nacelle -->
+        <rect x="31" y="25" width="6" height="2.5" rx="1.25" fill="white" opacity="0.82"/>
+        <!-- Left horizontal stabilizer -->
+        <path d="M20.5 33.5 L12.5 38 L13.2 39.5 L21.3 35.5Z" fill="white" opacity="0.88"/>
+        <!-- Right horizontal stabilizer -->
+        <path d="M23.5 33.5 L31.5 38 L30.8 39.5 L22.7 35.5Z" fill="white" opacity="0.88"/>
+        <!-- Tail cone -->
+        <ellipse cx="22" cy="36" rx="1.5" ry="2.8" fill="white" opacity="0.92"/>
+        <!-- Cockpit window dark tint -->
+        <ellipse cx="22" cy="10.5" rx="1.1" ry="1.5" fill="rgba(10,10,10,0.5)"/>
+        <!-- Fuselage centerline highlight for 3D depth -->
+        <ellipse cx="21.6" cy="22" rx="0.7" ry="9.5" fill="rgba(255,255,255,0.18)"/>
       </g>
     </svg>`;
   return L.divIcon({
     html: svg,
     className: 'aircraft-marker-icon',
-    iconSize: [32, 32],
-    iconAnchor: [16, 16]
+    iconSize: [44, 44],
+    iconAnchor: [22, 22]
   });
 }
 

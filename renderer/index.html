@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MSFS Flight Companion</title>
+  <meta name="description" content="Real-time MSFS 2024 flight tracker with SimBrief integration" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Title Bar -->
+  <div class="title-bar">
+    <div class="title-bar-icon">✈</div>
+    <div class="title-bar-title">Flight Companion</div>
+    <div class="title-bar-controls">
+      <button class="tb-btn" id="btn-minimize" title="Minimize">—</button>
+      <button class="tb-btn tb-btn-close" id="btn-close" title="Minimize to Tray">✕</button>
+    </div>
+  </div>
+
+  <!-- Connection Banner -->
+  <div class="connection-bar" id="connection-bar">
+    <div class="connection-dot" id="conn-dot"></div>
+    <span id="conn-label">Waiting for MSFS 2024...</span>
+  </div>
+
+  <!-- Main Layout -->
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+
+      <!-- Route Header -->
+      <div class="card route-card" id="route-card">
+        <div class="route-airports">
+          <div class="airport">
+            <div class="airport-icao" id="orig-icao">——</div>
+            <div class="airport-name" id="orig-name">Origin</div>
+            <div class="airport-rwy" id="orig-rwy"></div>
+          </div>
+          <div class="route-arrow">
+            <svg width="40" height="16" viewBox="0 0 40 16">
+              <line x1="0" y1="8" x2="34" y2="8" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="4,2"/>
+              <polygon points="30,4 40,8 30,12" fill="var(--accent)"/>
+            </svg>
+          </div>
+          <div class="airport">
+            <div class="airport-icao" id="dest-icao">——</div>
+            <div class="airport-name" id="dest-name">Destination</div>
+            <div class="airport-rwy" id="dest-rwy"></div>
+          </div>
+        </div>
+        <div class="aircraft-info">
+          <span class="tag" id="aircraft-type">——</span>
+          <span class="tag" id="flight-number"></span>
+          <span class="tag" id="cruise-fl">——</span>
+        </div>
+      </div>
+
+      <!-- Phase Progress Bar -->
+      <div class="card progress-card">
+        <div class="phase-pill" id="phase-pill">PREFLIGHT</div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progress-fill"></div>
+          <div class="progress-plane" id="progress-plane">✈</div>
+        </div>
+        <div class="progress-labels">
+          <span id="pb-orig">ORIG</span>
+          <span id="pb-pct">0%</span>
+          <span id="pb-dest">DEST</span>
+        </div>
+      </div>
+
+      <!-- Live Data -->
+      <div class="card live-card">
+        <div class="card-title">Live Data</div>
+        <div class="data-grid">
+          <div class="data-item">
+            <div class="data-label">ALT</div>
+            <div class="data-value mono" id="val-alt">——</div>
+            <div class="data-unit">ft</div>
+          </div>
+          <div class="data-item">
+            <div class="data-label">IAS</div>
+            <div class="data-value mono" id="val-ias">——</div>
+            <div class="data-unit">kts</div>
+          </div>
+          <div class="data-item">
+            <div class="data-label">GS</div>
+            <div class="data-value mono" id="val-gs">——</div>
+            <div class="data-unit">kts</div>
+          </div>
+          <div class="data-item">
+            <div class="data-label">HDG</div>
+            <div class="data-value mono" id="val-hdg">——</div>
+            <div class="data-unit">°T</div>
+          </div>
+          <div class="data-item">
+            <div class="data-label">V/S</div>
+            <div class="data-value mono" id="val-vs">——</div>
+            <div class="data-unit">fpm</div>
+          </div>
+          <div class="data-item">
+            <div class="data-label">FUEL</div>
+            <div class="data-value mono" id="val-fuel">——</div>
+            <div class="data-unit">gal</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Times Panel -->
+      <div class="card times-card">
+        <div class="card-title">Flight Times <span class="utc-badge">UTC</span></div>
+        <div class="times-grid">
+          <div class="time-row">
+            <div class="time-label planned">STD</div>
+            <div class="time-value" id="t-std">——:——</div>
+            <div class="time-sub">Sched. Departure</div>
+          </div>
+          <div class="time-row">
+            <div class="time-label actual">ATD</div>
+            <div class="time-value" id="t-atd">——:——</div>
+            <div class="time-sub">Actual Departure</div>
+          </div>
+          <div class="time-divider"></div>
+          <div class="time-row">
+            <div class="time-label planned">STA</div>
+            <div class="time-value" id="t-sta">——:——</div>
+            <div class="time-sub">Sched. Arrival</div>
+          </div>
+          <div class="time-row highlight">
+            <div class="time-label eta">ETA</div>
+            <div class="time-value" id="t-eta">——:——</div>
+            <div class="time-sub">Est. Arrival</div>
+          </div>
+          <div class="time-divider"></div>
+          <div class="time-row">
+            <div class="time-label remaining">REM</div>
+            <div class="time-value large" id="t-remaining">——h——m</div>
+            <div class="time-sub">Time Remaining</div>
+          </div>
+          <div class="time-row">
+            <div class="time-label elapsed">ELP</div>
+            <div class="time-value mono" id="t-elapsed">——:——</div>
+            <div class="time-sub">Elapsed</div>
+          </div>
+          <div class="time-row">
+            <div class="time-label delay" id="delay-label">DLY</div>
+            <div class="time-value" id="t-delay">——</div>
+            <div class="time-sub">Delay</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fuel Panel -->
+      <div class="card fuel-card">
+        <div class="card-title">Fuel</div>
+        <div class="fuel-bar-wrap">
+          <div class="fuel-bar-track">
+            <div class="fuel-bar-fill" id="fuel-bar-fill"></div>
+          </div>
+          <div class="fuel-bar-labels">
+            <span id="fuel-rem-label">——</span>
+            <span id="fuel-trip-label">Trip: ——</span>
+          </div>
+        </div>
+        <div class="fuel-detail">
+          <div class="fuel-stat"><span>Reserve</span><span id="fuel-reserve">——</span></div>
+          <div class="fuel-stat"><span>Est. at dest</span><span id="fuel-dest">——</span></div>
+        </div>
+      </div>
+
+      <!-- Load SimBrief Button -->
+      <button class="btn-primary" id="btn-simbrief">
+        <span class="btn-icon">📋</span> Load SimBrief Plan
+      </button>
+
+    </aside>
+
+    <!-- Map -->
+    <main class="map-container">
+      <div id="map"></div>
+      <div class="map-overlay-tl">
+        <div class="map-badge" id="map-coords">——°N ——°W</div>
+      </div>
+      <div class="map-overlay-tr">
+        <div class="map-badge" id="map-sim-time">——:——Z</div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,408 @@
+/* ===================================================
+   MSFS Flight Companion — Design System
+   Dark aviation glassmorphism theme
+=================================================== */
+
+:root {
+  --bg-base: #08091a;
+  --bg-surface: #0e1230;
+  --bg-card: rgba(15, 20, 48, 0.85);
+  --bg-card-border: rgba(80, 120, 255, 0.12);
+  --accent: #4a9eff;
+  --accent-glow: rgba(74, 158, 255, 0.3);
+  --accent2: #a855f7;
+  --green: #22d3a5;
+  --yellow: #f59e0b;
+  --red: #ef4444;
+  --text-primary: #e8eeff;
+  --text-secondary: #7a8bb0;
+  --text-muted: #3d4a6e;
+  --font-main: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --sidebar-width: 320px;
+  --title-bar-height: 38px;
+  --conn-bar-height: 30px;
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%; width: 100%;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  font-size: 13px;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Title Bar ── */
+.title-bar {
+  height: var(--title-bar-height);
+  background: rgba(10, 14, 36, 0.95);
+  border-bottom: 1px solid var(--bg-card-border);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  -webkit-app-region: drag;
+  user-select: none;
+  position: relative;
+  z-index: 100;
+}
+.title-bar-icon { font-size: 16px; margin-right: 8px; }
+.title-bar-title { font-size: 13px; font-weight: 600; letter-spacing: 0.5px; color: var(--text-primary); }
+.title-bar-controls {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+  -webkit-app-region: no-drag;
+}
+.tb-btn {
+  width: 28px; height: 20px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 10px;
+  transition: all 0.15s;
+}
+.tb-btn:hover { background: rgba(255,255,255,0.12); color: var(--text-primary); }
+.tb-btn-close:hover { background: var(--red); color: white; }
+
+/* ── Connection Bar ── */
+.connection-bar {
+  height: var(--conn-bar-height);
+  background: rgba(8, 9, 26, 0.9);
+  border-bottom: 1px solid var(--bg-card-border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.connection-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: background 0.4s;
+  box-shadow: 0 0 0 2px transparent;
+}
+.connection-dot.connected {
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: pulse-dot 2s infinite;
+}
+.connection-dot.disconnected { background: var(--red); }
+@keyframes pulse-dot {
+  0%,100% { box-shadow: 0 0 8px var(--green); }
+  50% { box-shadow: 0 0 16px var(--green); }
+}
+
+/* ── App Layout ── */
+.app-layout {
+  display: flex;
+  height: calc(100vh - var(--title-bar-height) - var(--conn-bar-height));
+  overflow: hidden;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  background: linear-gradient(180deg, #0b0f28 0%, #080c20 100%);
+  border-right: 1px solid var(--bg-card-border);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-card-border) transparent;
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--bg-card-border); border-radius: 2px; }
+
+/* ── Cards ── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius);
+  padding: 14px;
+  backdrop-filter: blur(12px);
+  transition: border-color 0.3s;
+}
+.card:hover { border-color: rgba(74, 158, 255, 0.22); }
+.card-title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.utc-badge {
+  font-size: 9px;
+  background: rgba(74, 158, 255, 0.15);
+  color: var(--accent);
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+}
+
+/* ── Route Card ── */
+.route-card { background: linear-gradient(135deg, rgba(15,20,48,0.9), rgba(74,158,255,0.05)); }
+.route-airports {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.airport { text-align: center; flex: 1; }
+.airport-icao { font-size: 22px; font-weight: 700; letter-spacing: 1px; color: var(--text-primary); }
+.airport-name { font-size: 10px; color: var(--text-secondary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; margin: 0 auto; }
+.airport-rwy { font-size: 10px; color: var(--accent); margin-top: 2px; font-family: var(--font-mono); }
+.route-arrow { flex: 0; padding: 0 6px; }
+.aircraft-info { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.tag {
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(74,158,255,0.1);
+  border: 1px solid rgba(74,158,255,0.2);
+  color: var(--accent);
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+}
+
+/* ── Phase Progress Bar ── */
+.progress-card { padding: 14px; }
+.phase-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  margin-bottom: 12px;
+  background: rgba(74,158,255,0.15);
+  border: 1px solid rgba(74,158,255,0.3);
+  color: var(--accent);
+  transition: all 0.4s;
+}
+.phase-pill.TAXI    { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.3); color: var(--yellow); }
+.phase-pill.TAKEOFF { background: rgba(168,85,247,0.15); border-color: rgba(168,85,247,0.3); color: var(--accent2); }
+.phase-pill.CLIMB   { background: rgba(74,158,255,0.2);  border-color: rgba(74,158,255,0.4); color: var(--accent); }
+.phase-pill.CRUISE  { background: rgba(34,211,165,0.15); border-color: rgba(34,211,165,0.3); color: var(--green); }
+.phase-pill.DESCENT { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.3); color: var(--yellow); }
+.phase-pill.APPROACH{ background: rgba(239,68,68,0.15);  border-color: rgba(239,68,68,0.3);  color: var(--red); }
+.phase-pill.LANDED  { background: rgba(34,211,165,0.25); border-color: rgba(34,211,165,0.4); color: var(--green); }
+
+.progress-track {
+  position: relative;
+  height: 8px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px;
+  overflow: visible;
+  margin: 0 10px;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--accent), var(--green));
+  box-shadow: 0 0 12px var(--accent-glow);
+  transition: width 1s ease;
+  width: 0%;
+}
+.progress-plane {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 14px;
+  filter: drop-shadow(0 0 6px var(--accent));
+  transition: left 1s ease;
+  left: 0%;
+  pointer-events: none;
+}
+.progress-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* ── Live Data Grid ── */
+.data-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.data-item {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+.data-item:hover { border-color: rgba(74,158,255,0.2); }
+.data-label { font-size: 9px; font-weight: 600; letter-spacing: 1px; color: var(--text-muted); text-transform: uppercase; }
+.data-value { font-size: 16px; font-weight: 700; color: var(--text-primary); margin: 2px 0; line-height: 1; }
+.data-value.mono { font-family: var(--font-mono); }
+.data-unit { font-size: 9px; color: var(--text-muted); }
+
+/* ── Times Grid ── */
+.times-grid { display: flex; flex-direction: column; gap: 6px; }
+.time-row {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+}
+.time-row.highlight {
+  background: rgba(74,158,255,0.06);
+  border-radius: 6px;
+  padding: 6px 6px;
+  border: 1px solid rgba(74,158,255,0.15);
+  margin: 0 -4px;
+}
+.time-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+  padding: 2px 5px;
+  border-radius: 3px;
+  text-align: center;
+}
+.time-label.planned  { background: rgba(74,158,255,0.12);  color: var(--accent); }
+.time-label.actual   { background: rgba(34,211,165,0.12);  color: var(--green); }
+.time-label.eta      { background: rgba(168,85,247,0.15);  color: var(--accent2); }
+.time-label.remaining{ background: rgba(245,158,11,0.12);  color: var(--yellow); }
+.time-label.elapsed  { background: rgba(255,255,255,0.05); color: var(--text-secondary); }
+.time-label.delay    { background: rgba(239,68,68,0.1);    color: var(--red); }
+
+.time-value {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.time-value.large { font-size: 18px; font-weight: 700; color: var(--accent2); }
+.time-sub {
+  font-size: 9px;
+  color: var(--text-muted);
+  text-align: right;
+  white-space: nowrap;
+}
+.time-divider { height: 1px; background: var(--bg-card-border); margin: 2px 0; }
+
+/* ── Fuel ── */
+.fuel-bar-track {
+  height: 10px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 5px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.fuel-bar-fill {
+  height: 100%;
+  border-radius: 5px;
+  background: linear-gradient(90deg, var(--red), var(--yellow), var(--green));
+  background-size: 200% 100%;
+  transition: width 1s ease;
+  width: 100%;
+}
+.fuel-bar-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary); margin-bottom: 8px; }
+.fuel-detail { display: flex; flex-direction: column; gap: 4px; }
+.fuel-stat { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary); }
+.fuel-stat span:last-child { font-family: var(--font-mono); color: var(--text-primary); }
+
+/* ── Button ── */
+.btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 16px;
+  background: linear-gradient(135deg, rgba(74,158,255,0.2), rgba(168,85,247,0.15));
+  border: 1px solid rgba(74,158,255,0.35);
+  border-radius: var(--radius);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-main);
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.3px;
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, rgba(74,158,255,0.35), rgba(168,85,247,0.25));
+  border-color: var(--accent);
+  color: white;
+  box-shadow: 0 0 20px var(--accent-glow);
+  transform: translateY(-1px);
+}
+.btn-primary:active { transform: translateY(0); }
+.btn-icon { font-size: 15px; }
+
+/* ── Map ── */
+.map-container { flex: 1; position: relative; overflow: hidden; }
+#map { width: 100%; height: 100%; background: #080c1e; }
+
+/* Leaflet dark overrides */
+.leaflet-tile-pane { filter: brightness(0.85) saturate(0.7); }
+.leaflet-control-attribution { background: rgba(8,9,26,0.8) !important; color: var(--text-muted) !important; font-size: 9px !important; }
+.leaflet-control-zoom a {
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--bg-card-border) !important;
+}
+.leaflet-control-zoom a:hover { background: rgba(74,158,255,0.2) !important; }
+
+/* ── Map Overlays ── */
+.map-overlay-tl, .map-overlay-tr {
+  position: absolute;
+  top: 12px;
+  z-index: 1000;
+  pointer-events: none;
+}
+.map-overlay-tl { left: 12px; }
+.map-overlay-tr { right: 12px; }
+.map-badge {
+  background: rgba(8,9,26,0.85);
+  border: 1px solid var(--bg-card-border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  backdrop-filter: blur(8px);
+}
+
+/* ── Aircraft Marker ── */
+.aircraft-marker-icon {
+  filter: drop-shadow(0 0 8px rgba(74,158,255,0.8));
+  transition: transform 0.5s ease;
+}
+
+/* ── Animations ── */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.card { animation: fadeIn 0.3s ease forwards; }
+
+/* ── Scrollbar ── */
+* { scrollbar-width: thin; scrollbar-color: var(--bg-card-border) transparent; }

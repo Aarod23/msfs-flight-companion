@@ -1,0 +1,19 @@
+{
+  "name": "msfs-flight-relay",
+  "version": "1.0.0",
+  "description": "Cloud relay server bridging MSFS desktop app to iPhone",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "ws": "^8.17.1"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

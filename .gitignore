@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+out/
+build/
+*.app
+*.dmg
+*.exe
+*.msi
+*.AppImage
+
+# Electron
+.electron/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Environment / Secrets
+.env
+.env.local
+.env.*.local
+*.secret
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# iOS build artifacts (keep source, not builds)
+ios/**/*.xcworkspace
+ios/**/*.xcuserdata
+ios/**/DerivedData
+ios/**/*.ipa
+ios/**/*.dSYM.zip
+ios/**/*.dSYM
+ios/**/Pods/
+
+# Misc
+*.pid
+*.seed

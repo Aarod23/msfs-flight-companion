@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: msfs-flight-relay
+    env: node
+    region: ohio
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: RELAY_API_KEY
+        generateValue: true
+      - key: PORT
+        value: 3001

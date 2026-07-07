@@ -22,6 +22,7 @@ let flightState = {
   atd: null, blockOn: null,
   lastUpdated: null
 };
+let trafficData = [];
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -81,8 +82,13 @@ function broadcastState() {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('flight-state', flightState);
   }
-  if (relayClient) {
-    relayClient.push(flightState);
+  if (relayClient) relayClient.push(flightState);
+}
+
+function broadcastTraffic(traffic) {
+  trafficData = traffic;
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('traffic-update', traffic);
   }
 }
 
@@ -146,8 +152,8 @@ function showNotification(title, body) {
 }
 
 // IPC Handlers
-ipcMain.handle('get-state', () => flightState);
-
+ipcMain.handle('get-state',    () => flightState);
+ipcMain.handle('get-traffic',  () => trafficData);
 ipcMain.handle('load-simbrief', async () => {
   const data = await SimBrief.fetchOFP();
   if (data) {
@@ -156,9 +162,8 @@ ipcMain.handle('load-simbrief', async () => {
   }
   return data;
 });
-
-ipcMain.handle('get-settings', () => store.store);
-ipcMain.handle('save-settings', (_, settings) => store.set(settings));
+ipcMain.handle('get-settings',    () => store.store);
+ipcMain.handle('save-settings',   (_, s) => store.set(s));
 
 // App lifecycle
 app.whenReady().then(() => {
@@ -166,12 +171,16 @@ app.whenReady().then(() => {
   createTray();
 
   // Start SimConnect bridge
-  simBridge = new SimConnectBridge(onSimData, (connected) => {
-    flightState.connected = connected;
-    tray.setToolTip(connected ? 'MSFS Flight Companion — Connected' : 'MSFS Flight Companion — Waiting for MSFS');
-    broadcastState();
-    if (connected) showNotification('MSFS Connected', 'SimConnect link established');
-  });
+  simBridge = new SimConnectBridge(
+    onSimData,
+    (connected) => {
+      flightState.connected = connected;
+      tray.setToolTip(connected ? 'MSFS Flight Companion — Connected' : 'MSFS Flight Companion — Waiting for MSFS');
+      broadcastState();
+      if (connected) showNotification('MSFS Connected', 'SimConnect link established');
+    },
+    (traffic) => broadcastTraffic(traffic)
+  );
   simBridge.start();
 
   // Start relay client

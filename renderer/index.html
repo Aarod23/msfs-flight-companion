@@ -4,194 +4,194 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MSFS Flight Companion</title>
-  <meta name="description" content="Real-time MSFS 2024 flight tracker with SimBrief integration" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../node_modules/maplibre-gl/dist/maplibre-gl.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="title-bar">
-    <div class="title-bar-icon">✈</div>
-    <div class="title-bar-title">Flight Companion &mdash; MSFS 2024</div>
-    <div class="title-bar-controls">
-      <button class="tb-btn" id="btn-minimize" title="Minimize">&mdash;</button>
-      <button class="tb-btn tb-btn-close" id="btn-close" title="Minimize to Tray">&times;</button>
+
+  <!-- ─────────────────────────────────────────────────────────
+       TITLE BAR (draggable, native-feel)
+  ───────────────────────────────────────────────────────── -->
+  <div class="title-bar" id="title-bar">
+    <div class="title-bar-drag"></div>
+    <div class="tb-controls">
+      <button class="tb-btn tb-close"   id="btn-close"    title="Minimize to tray"></button>
+      <button class="tb-btn tb-min"     id="btn-minimize" title="Minimize"></button>
     </div>
   </div>
 
-  <!-- Connection Banner -->
-  <div class="connection-bar" id="connection-bar">
-    <div class="connection-dot" id="conn-dot"></div>
-    <span id="conn-label">Waiting for MSFS 2024&hellip;</span>
+  <!-- ─────────────────────────────────────────────────────────
+       MAP — full screen background
+  ───────────────────────────────────────────────────────── -->
+  <div id="map"></div>
+
+  <!-- ─────────────────────────────────────────────────────────
+       TOP BAR — connection + route + buttons
+  ───────────────────────────────────────────────────────── -->
+  <div class="top-bar">
+    <!-- Connection indicator -->
+    <div class="conn-chip" id="conn-chip">
+      <div class="conn-dot" id="conn-dot"></div>
+      <span id="conn-label">Waiting for MSFS…</span>
+    </div>
+
+    <!-- Route badge -->
+    <div class="route-badge" id="route-badge">
+      <span class="rb-icao" id="rb-orig">——</span>
+      <svg class="rb-arrow" viewBox="0 0 24 8" fill="none">
+        <path d="M0 4h20M16 1l4 3-4 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="rb-icao" id="rb-dest">——</span>
+      <span class="rb-sep"></span>
+      <span class="rb-tag" id="rb-ac">——</span>
+      <span class="rb-tag rb-fn" id="rb-fn"></span>
+      <span class="rb-tag rb-fl" id="rb-fl"></span>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="top-actions">
+      <button class="action-btn" id="btn-satellite" title="Toggle Satellite/Dark">🛰 Satellite</button>
+      <button class="action-btn action-btn-primary" id="btn-simbrief">📋 SimBrief</button>
+    </div>
   </div>
 
-  <!-- Main Layout -->
-  <div class="app-layout">
-    <!-- Sidebar -->
-    <aside class="sidebar">
-
-      <!-- Route Header -->
-      <div class="card route-card" id="route-card">
-        <div class="route-airports">
-          <div class="airport">
-            <div class="airport-icao" id="orig-icao">——</div>
-            <div class="airport-name" id="orig-name">Origin</div>
-            <div class="airport-rwy" id="orig-rwy"></div>
-          </div>
-          <div class="route-arrow">
-            <svg width="40" height="16" viewBox="0 0 40 16">
-              <line x1="0" y1="8" x2="34" y2="8" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="4,2"/>
-              <polygon points="30,4 40,8 30,12" fill="var(--accent)"/>
-            </svg>
-          </div>
-          <div class="airport">
-            <div class="airport-icao" id="dest-icao">——</div>
-            <div class="airport-name" id="dest-name">Destination</div>
-            <div class="airport-rwy" id="dest-rwy"></div>
-          </div>
-        </div>
-        <div class="aircraft-info">
-          <span class="tag" id="aircraft-type">——</span>
-          <span class="tag" id="flight-number"></span>
-          <span class="tag" id="cruise-fl">——</span>
-        </div>
+  <!-- ─────────────────────────────────────────────────────────
+       LIVE DATA CARD — top right
+  ───────────────────────────────────────────────────────── -->
+  <div class="float-card live-card" id="live-card">
+    <div class="live-grid">
+      <div class="live-item">
+        <div class="live-label">ALT</div>
+        <div class="live-val" id="ld-alt">——</div>
+        <div class="live-unit">ft</div>
       </div>
-
-      <!-- Phase Progress Bar -->
-      <div class="card progress-card">
-        <div class="phase-pill" id="phase-pill">PREFLIGHT</div>
-        <div class="progress-track">
-          <div class="progress-fill" id="progress-fill"></div>
-          <div class="progress-plane" id="progress-plane">✈</div>
-        </div>
-        <div class="progress-labels">
-          <span id="pb-orig">ORIG</span>
-          <span id="pb-pct">0%</span>
-          <span id="pb-dest">DEST</span>
-        </div>
+      <div class="live-item">
+        <div class="live-label">IAS</div>
+        <div class="live-val" id="ld-ias">——</div>
+        <div class="live-unit">kts</div>
       </div>
-
-      <!-- Live Data -->
-      <div class="card live-card">
-        <div class="card-title">Live Data</div>
-        <div class="data-grid">
-          <div class="data-item">
-            <div class="data-label">ALT</div>
-            <div class="data-value mono" id="val-alt">——</div>
-            <div class="data-unit">ft</div>
-          </div>
-          <div class="data-item">
-            <div class="data-label">IAS</div>
-            <div class="data-value mono" id="val-ias">——</div>
-            <div class="data-unit">kts</div>
-          </div>
-          <div class="data-item">
-            <div class="data-label">GS</div>
-            <div class="data-value mono" id="val-gs">——</div>
-            <div class="data-unit">kts</div>
-          </div>
-          <div class="data-item">
-            <div class="data-label">HDG</div>
-            <div class="data-value mono" id="val-hdg">——</div>
-            <div class="data-unit">°T</div>
-          </div>
-          <div class="data-item">
-            <div class="data-label">V/S</div>
-            <div class="data-value mono" id="val-vs">——</div>
-            <div class="data-unit">fpm</div>
-          </div>
-          <div class="data-item">
-            <div class="data-label">FUEL</div>
-            <div class="data-value mono" id="val-fuel">——</div>
-            <div class="data-unit">gal</div>
-          </div>
-        </div>
+      <div class="live-item">
+        <div class="live-val live-val-big" id="ld-vs">——</div>
+        <div class="live-unit">fpm</div>
+        <div class="live-label">V/S</div>
       </div>
-
-      <!-- Times Panel -->
-      <div class="card times-card">
-        <div class="card-title">Flight Times <span class="utc-badge">UTC</span></div>
-        <div class="times-grid">
-          <div class="time-row">
-            <div class="time-label planned">STD</div>
-            <div class="time-value" id="t-std">——:——</div>
-            <div class="time-sub">Sched. Departure</div>
-          </div>
-          <div class="time-row">
-            <div class="time-label actual">ATD</div>
-            <div class="time-value" id="t-atd">——:——</div>
-            <div class="time-sub">Actual Departure</div>
-          </div>
-          <div class="time-divider"></div>
-          <div class="time-row">
-            <div class="time-label planned">STA</div>
-            <div class="time-value" id="t-sta">——:——</div>
-            <div class="time-sub">Sched. Arrival</div>
-          </div>
-          <div class="time-row highlight">
-            <div class="time-label eta">ETA</div>
-            <div class="time-value" id="t-eta">——:——</div>
-            <div class="time-sub">Est. Arrival</div>
-          </div>
-          <div class="time-divider"></div>
-          <div class="time-row">
-            <div class="time-label remaining">REM</div>
-            <div class="time-value large" id="t-remaining">——h——m</div>
-            <div class="time-sub">Time Remaining</div>
-          </div>
-          <div class="time-row">
-            <div class="time-label elapsed">ELP</div>
-            <div class="time-value mono" id="t-elapsed">——:——</div>
-            <div class="time-sub">Elapsed</div>
-          </div>
-          <div class="time-row">
-            <div class="time-label delay" id="delay-label">DLY</div>
-            <div class="time-value" id="t-delay">——</div>
-            <div class="time-sub">Delay</div>
-          </div>
-        </div>
+      <div class="live-item">
+        <div class="live-label">GS</div>
+        <div class="live-val" id="ld-gs">——</div>
+        <div class="live-unit">kts</div>
       </div>
-
-      <!-- Fuel Panel -->
-      <div class="card fuel-card">
-        <div class="card-title">Fuel</div>
-        <div class="fuel-bar-wrap">
-          <div class="fuel-bar-track">
-            <div class="fuel-bar-fill" id="fuel-bar-fill"></div>
-          </div>
-          <div class="fuel-bar-labels">
-            <span id="fuel-rem-label">——</span>
-            <span id="fuel-trip-label">Trip: ——</span>
-          </div>
-        </div>
-        <div class="fuel-detail">
-          <div class="fuel-stat"><span>Reserve</span><span id="fuel-reserve">——</span></div>
-          <div class="fuel-stat"><span>Est. at dest</span><span id="fuel-dest">——</span></div>
-        </div>
+      <div class="live-item">
+        <div class="live-label">HDG</div>
+        <div class="live-val" id="ld-hdg">——</div>
+        <div class="live-unit">°T</div>
       </div>
-
-      <!-- Load SimBrief Button -->
-      <button class="btn-primary" id="btn-simbrief">
-        <span class="btn-icon">📋</span> Load SimBrief Plan
-      </button>
-
-    </aside>
-
-    <!-- Map -->
-    <main class="map-container">
-      <div id="map"></div>
-      <div class="map-overlay-tl">
-        <div class="map-badge" id="map-coords">——°N ——°W</div>
+      <div class="live-item">
+        <div class="live-label">FUEL</div>
+        <div class="live-val" id="ld-fuel">——</div>
+        <div class="live-unit">gal</div>
       </div>
-      <div class="map-overlay-tr">
-        <div class="map-badge" id="map-sim-time">——:——Z</div>
-      </div>
-    </main>
+    </div>
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- ─────────────────────────────────────────────────────────
+       FLIGHT INFO CARD — bottom, spanning
+  ───────────────────────────────────────────────────────── -->
+  <div class="float-card fi-card" id="fi-card">
+    <!-- Phase + progress -->
+    <div class="fi-top">
+      <div class="fi-left">
+        <span class="phase-pill" id="fi-phase">PREFLIGHT</span>
+        <div class="fi-route-track">
+          <span class="fi-icao" id="fi-orig">——</span>
+          <div class="fi-progress-wrap">
+            <div class="fi-progress-track">
+              <div class="fi-progress-fill" id="fi-progress-fill"></div>
+            </div>
+            <div class="fi-progress-plane" id="fi-progress-plane">✈</div>
+          </div>
+          <span class="fi-icao" id="fi-dest">——</span>
+        </div>
+      </div>
+      <!-- Delay chip -->
+      <div class="delay-chip" id="delay-chip" style="display:none">
+        <span id="delay-val">——</span>
+      </div>
+    </div>
+
+    <!-- Divider -->
+    <div class="fi-divider"></div>
+
+    <!-- Times row -->
+    <div class="fi-times">
+      <!-- STD -->
+      <div class="fi-time-group">
+        <div class="fi-tg-label">DEPARTURE</div>
+        <div class="fi-tg-cols">
+          <div class="fi-time-item">
+            <div class="fi-t-code">STD</div>
+            <div class="fi-t-val" id="fi-std">——:——</div>
+          </div>
+          <div class="fi-time-item fi-time-actual">
+            <div class="fi-t-code">ATD</div>
+            <div class="fi-t-val" id="fi-atd">——:——</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Separator -->
+      <div class="fi-ts-sep"></div>
+
+      <!-- REM — big center -->
+      <div class="fi-time-group fi-time-center">
+        <div class="fi-tg-label">TIME REMAINING</div>
+        <div class="fi-t-rem" id="fi-rem">——h ——m</div>
+        <div class="fi-t-rem-sub" id="fi-eta-sub">ETA ——:——Z</div>
+      </div>
+
+      <!-- Separator -->
+      <div class="fi-ts-sep"></div>
+
+      <!-- STA -->
+      <div class="fi-time-group fi-time-right">
+        <div class="fi-tg-label">ARRIVAL</div>
+        <div class="fi-tg-cols">
+          <div class="fi-time-item">
+            <div class="fi-t-code">STA</div>
+            <div class="fi-t-val" id="fi-sta">——:——</div>
+          </div>
+          <div class="fi-time-item fi-time-eta">
+            <div class="fi-t-code">ETA</div>
+            <div class="fi-t-val" id="fi-eta">——:——</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────
+       TRAFFIC POPUP — shows on AI aircraft click
+  ───────────────────────────────────────────────────────── -->
+  <div class="traffic-popup" id="traffic-popup" style="display:none">
+    <div class="tp-header">
+      <div class="tp-callsign" id="tp-callsign">——</div>
+      <div class="tp-model" id="tp-model">——</div>
+    </div>
+    <div class="tp-divider"></div>
+    <div class="tp-stats">
+      <div class="tp-stat"><span class="tp-lbl">ALT</span><span class="tp-val" id="tp-alt">——</span></div>
+      <div class="tp-stat"><span class="tp-lbl">GS</span><span class="tp-val" id="tp-gs">——</span></div>
+      <div class="tp-stat"><span class="tp-lbl">HDG</span><span class="tp-val" id="tp-hdg">——</span></div>
+    </div>
+    <button class="tp-close" id="tp-close">✕</button>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────
+       SCRIPTS
+  ───────────────────────────────────────────────────────── -->
+  <script src="../node_modules/maplibre-gl/dist/maplibre-gl.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

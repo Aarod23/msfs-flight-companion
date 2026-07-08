@@ -1,0 +1,96 @@
+workflows:
+  ios-build:
+    name: FlightCompanion iOS
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    # ── Triggering ─────────────────────────────────────────────
+    triggering:
+      events:
+        - push
+        - pull_request
+      branch_patterns:
+        - pattern: main
+          include: true
+        - pattern: master
+          include: true
+
+    # ── Environment ────────────────────────────────────────────
+    environment:
+      xcode: latest        # uses latest stable Xcode on Codemagic
+      cocoapods: default
+
+      # Code signing — set these in Codemagic UI under
+      # App Settings → Environment variables
+      vars:
+        BUNDLE_ID: "com.aarod23.FlightCompanion"
+        WIDGET_BUNDLE_ID: "com.aarod23.FlightCompanion.LiveActivityWidget"
+        XCODE_PROJECT: "ios/FlightCompanion.xcodeproj"
+        XCODE_SCHEME: "FlightCompanion"
+
+      # Signing — populate these via Codemagic UI > App > Environment variables
+      # CM_CERTIFICATE           → Your .p12 certificate (base64 encoded)
+      # CM_CERTIFICATE_PASSWORD  → Password for the .p12
+      # CM_PROVISIONING_PROFILE  → Your .mobileprovision (base64 encoded)
+      # (See step-by-step instructions below in the README section)
+      groups:
+        - ios_signing   # create this group in Codemagic UI with your signing vars
+
+    # ── Scripts ────────────────────────────────────────────────
+    scripts:
+      - name: Set up keychain
+        script: |
+          keychain initialize
+
+      - name: Set up provisioning profiles
+        script: |
+          PROFILES_HOME="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILES_HOME"
+
+          # Decode and install the main app profile
+          echo "$CM_PROVISIONING_PROFILE" | base64 --decode > "$PROFILES_HOME/FlightCompanion.mobileprovision"
+
+          # Decode and install widget profile (if you have one)
+          if [ -n "$CM_WIDGET_PROVISIONING_PROFILE" ]; then
+            echo "$CM_WIDGET_PROVISIONING_PROFILE" | base64 --decode > "$PROFILES_HOME/LiveActivityWidget.mobileprovision"
+          fi
+
+      - name: Set up code signing certificate
+        script: |
+          echo "$CM_CERTIFICATE" | base64 --decode > /tmp/certificate.p12
+          keychain add-certificates --certificate /tmp/certificate.p12 --certificate-password "$CM_CERTIFICATE_PASSWORD"
+
+      - name: Increment build number
+        script: |
+          # Auto-increment build number based on Codemagic build count
+          cd ios
+          agvtool new-version -all "$BUILD_NUMBER"
+
+      - name: Build the Xcode project
+        script: |
+          xcode-project use-profiles
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME"
+
+    # ── Build artifacts to download ────────────────────────────
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+
+    # ── Notifications ──────────────────────────────────────────
+    publishing:
+      email:
+        recipients:
+          - arodr@example.com   # ← replace with your actual email
+        notify:
+          success: true
+          failure: true
+
+      # Uncomment to publish to TestFlight (needs Apple Developer account):
+      # app_store_connect:
+      #   api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+      #   key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+      #   issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+      #   submit_to_testflight: true

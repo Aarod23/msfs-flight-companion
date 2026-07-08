@@ -1,7 +1,11 @@
 import ActivityKit
 import SwiftUI
 
-// MARK: - Activity Attributes (must match Widget Extension)
+// MARK: - Activity Attributes
+// FlightActivityAttributes is the shared struct used by both this app and the
+// LiveActivityWidget extension. The canonical definition lives here in the
+// main app; the widget extension has its own copy (required because extensions
+// are separate bundles and cannot import from the parent app target).
 
 struct FlightActivityAttributes: ActivityAttributes {
     struct ContentState: Codable, Hashable {
@@ -19,6 +23,7 @@ struct FlightActivityAttributes: ActivityAttributes {
     var flightNumber: String
     var aircraftType: String
 }
+
 
 // MARK: - Live Activity Manager
 

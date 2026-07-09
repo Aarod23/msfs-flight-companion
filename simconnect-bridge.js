@@ -5,17 +5,19 @@ const USER_DEFINE_ID  = 1;
 const USER_REQUEST_ID = 1;
 
 const USER_VARS = [
-  { name: 'PLANE LATITUDE',               unit: 'degrees',         key: 'lat',      type: SimConnectDataType.FLOAT64 },
-  { name: 'PLANE LONGITUDE',              unit: 'degrees',         key: 'lon',      type: SimConnectDataType.FLOAT64 },
-  { name: 'PLANE ALTITUDE',               unit: 'feet',            key: 'alt',      type: SimConnectDataType.FLOAT64 },
-  { name: 'AIRSPEED INDICATED',           unit: 'knots',           key: 'ias',      type: SimConnectDataType.FLOAT64 },
-  { name: 'AIRSPEED TRUE',                unit: 'knots',           key: 'tas',      type: SimConnectDataType.FLOAT64 },
-  { name: 'GROUND VELOCITY',              unit: 'knots',           key: 'gs',       type: SimConnectDataType.FLOAT64 },
-  { name: 'PLANE HEADING DEGREES TRUE',   unit: 'degrees',         key: 'hdg',      type: SimConnectDataType.FLOAT64 },
-  { name: 'VERTICAL SPEED',               unit: 'feet per minute', key: 'vs',       type: SimConnectDataType.FLOAT64 },
-  { name: 'SIM ON GROUND',                unit: 'bool',            key: 'onGround', type: SimConnectDataType.INT32   },
-  { name: 'FUEL TOTAL QUANTITY',          unit: 'gallons',         key: 'fuel',     type: SimConnectDataType.FLOAT64 },
-  { name: 'GENERAL ENG COMBUSTION:1',     unit: 'bool',            key: 'engineOn', type: SimConnectDataType.INT32   },
+  { name: 'PLANE LATITUDE',               unit: 'degrees',         key: 'lat',       type: SimConnectDataType.FLOAT64 },
+  { name: 'PLANE LONGITUDE',              unit: 'degrees',         key: 'lon',       type: SimConnectDataType.FLOAT64 },
+  { name: 'PLANE ALTITUDE',               unit: 'feet',            key: 'alt',       type: SimConnectDataType.FLOAT64 },
+  { name: 'AIRSPEED INDICATED',           unit: 'knots',           key: 'ias',       type: SimConnectDataType.FLOAT64 },
+  { name: 'AIRSPEED TRUE',                unit: 'knots',           key: 'tas',       type: SimConnectDataType.FLOAT64 },
+  { name: 'GROUND VELOCITY',              unit: 'knots',           key: 'gs',        type: SimConnectDataType.FLOAT64 },
+  { name: 'PLANE HEADING DEGREES TRUE',   unit: 'degrees',         key: 'hdg',       type: SimConnectDataType.FLOAT64 },
+  { name: 'VERTICAL SPEED',               unit: 'feet per minute', key: 'vs',        type: SimConnectDataType.FLOAT64 },
+  { name: 'SIM ON GROUND',                unit: 'bool',            key: 'onGround',  type: SimConnectDataType.INT32   },
+  { name: 'FUEL TOTAL QUANTITY',          unit: 'gallons',         key: 'fuel',      type: SimConnectDataType.FLOAT64 },
+  { name: 'GENERAL ENG COMBUSTION:1',     unit: 'bool',            key: 'engineOn',  type: SimConnectDataType.INT32   },
+  { name: 'AMBIENT WIND VELOCITY',        unit: 'knots',           key: 'windSpeed', type: SimConnectDataType.FLOAT64 },
+  { name: 'AMBIENT WIND DIRECTION',       unit: 'degrees',         key: 'windDir',   type: SimConnectDataType.FLOAT64 },
 ];
 
 // ── AI Traffic data definition ──────────────────────────────────────────────

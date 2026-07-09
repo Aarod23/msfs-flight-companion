@@ -8,26 +8,18 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            Color(hex: "#08091A").ignoresSafeArea()
+            // ── Phase-reactive background ───────────────────────
+            phaseBackground.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Header
                 headerView
-
-                // Tab content
                 TabView(selection: $selectedTab) {
-                    FlightDashboardView(state: vm.state)
-                        .tag(0)
-                    FlightMapView(state: vm.state)
-                        .tag(1)
-                    TimesView(state: vm.state)
-                        .tag(2)
-                    SettingsView(relayURL: $relayURL, relayKey: $relayKey, onSave: reconnect)
-                        .tag(3)
+                    FlightDashboardView(state: vm.state).tag(0)
+                    FlightMapView(state: vm.state).tag(1)
+                    TimesView(state: vm.state).tag(2)
+                    SettingsView(relayURL: $relayURL, relayKey: $relayKey, onSave: reconnect).tag(3)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
-
-                // Custom tab bar
                 customTabBar
             }
         }
@@ -38,10 +30,41 @@ struct ContentView: View {
         vm.connect(url: relayURL, apiKey: relayKey)
     }
 
+    // MARK: - Phase Reactive Background
+    @ViewBuilder
+    var phaseBackground: some View {
+        ZStack {
+            Color(hex: "#08091A")
+            // Subtle radial gradient that shifts per phase
+            RadialGradient(
+                gradient: Gradient(colors: [phaseGlowColor.opacity(0.18), .clear]),
+                center: .topTrailing,
+                startRadius: 0,
+                endRadius: 420
+            )
+            .animation(.easeInOut(duration: 2.5), value: vm.state.phase)
+        }
+    }
+
+    var phaseGlowColor: Color {
+        switch vm.state.phase {
+        case "PREFLIGHT": return Color(hex: "#3D4A6E")
+        case "TAXI":      return Color(hex: "#F59E0B")
+        case "TAKEOFF":   return Color(hex: "#A855F7")
+        case "CLIMB":     return Color(hex: "#4A9EFF")
+        case "CRUISE":    return Color(hex: "#22D3A5")
+        case "DESCENT":   return Color(hex: "#F59E0B")
+        case "APPROACH":  return Color(hex: "#EF4444")
+        case "LANDED":    return Color(hex: "#22D3A5")
+        default:          return Color(hex: "#4A9EFF")
+        }
+    }
+
     // MARK: - Header
     var headerView: some View {
         ZStack {
-            Color(hex: "#0B0F28")
+            Color(hex: "#0B0F28").opacity(0.9)
+                .background(.ultraThinMaterial)
             VStack(spacing: 4) {
                 // Route row
                 HStack(spacing: 12) {
@@ -60,8 +83,9 @@ struct ContentView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
 
-                // Progress bar
-                progressBar
+                // Phase timeline strip (replaces plain progress bar)
+                phaseTimeline
+                    .padding(.horizontal, 16)
 
                 // Aircraft + connection row
                 HStack {
@@ -69,8 +93,7 @@ struct ContentView: View {
                         Text(ac)
                             .font(.system(size: 11, weight: .semibold, design: .monospaced))
                             .foregroundColor(Color(hex: "#4A9EFF"))
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
+                            .padding(.horizontal, 7).padding(.vertical, 3)
                             .background(Color(hex: "#4A9EFF").opacity(0.15))
                             .clipShape(RoundedRectangle(cornerRadius: 4))
                     }
@@ -80,7 +103,6 @@ struct ContentView: View {
                             .foregroundColor(Color(hex: "#7A8BB0"))
                     }
                     Spacer()
-                    // Connection dot
                     Circle()
                         .fill(vm.state.connected ? Color(hex: "#22D3A5") : Color.gray)
                         .frame(width: 7, height: 7)
@@ -93,47 +115,83 @@ struct ContentView: View {
                 .padding(.bottom, 8)
             }
         }
-        .frame(height: 100)
-        .cornerRadius(0)
+        .frame(height: 108)
     }
 
-    // MARK: - Progress Bar
-    var progressBar: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(Color.white.opacity(0.06))
-                    .frame(height: 6)
+    // MARK: - Phase Timeline Strip
+    let allPhases = ["PREFLIGHT", "TAXI", "TAKEOFF", "CLIMB", "CRUISE", "DESCENT", "APPROACH", "LANDED"]
 
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(LinearGradient(
-                        gradient: Gradient(colors: [Color(hex: "#4A9EFF"), Color(hex: "#22D3A5")]),
-                        startPoint: .leading, endPoint: .trailing
-                    ))
-                    .frame(width: CGFloat(vm.state.progressPercent / 100) * geo.size.width, height: 6)
-                    .shadow(color: Color(hex: "#4A9EFF").opacity(0.5), radius: 4)
-                    .animation(.spring(duration: 1), value: vm.state.progressPercent)
+    var currentPhaseIndex: Int {
+        allPhases.firstIndex(of: vm.state.phase) ?? 0
+    }
 
-                // Plane icon
-                Text("✈")
-                    .font(.system(size: 14))
-                    .shadow(color: Color(hex: "#4A9EFF"), radius: 6)
-                    .offset(x: max(0, min(CGFloat(vm.state.progressPercent / 100) * geo.size.width - 7, geo.size.width - 14)))
-                    .animation(.spring(duration: 1), value: vm.state.progressPercent)
+    var phaseTimeline: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(allPhases.enumerated()), id: \.offset) { i, phase in
+                let isDone    = i < currentPhaseIndex
+                let isCurrent = i == currentPhaseIndex
+
+                HStack(spacing: 0) {
+                    // Node
+                    ZStack {
+                        Circle()
+                            .fill(isDone ? phaseColor(phase) : isCurrent ? phaseColor(phase) : Color.white.opacity(0.1))
+                            .frame(width: isCurrent ? 9 : 6, height: isCurrent ? 9 : 6)
+                            .shadow(color: isCurrent ? phaseColor(phase) : .clear, radius: isCurrent ? 5 : 0)
+                        if isCurrent {
+                            Circle()
+                                .stroke(phaseColor(phase).opacity(0.4), lineWidth: 1.5)
+                                .frame(width: 15, height: 15)
+                        }
+                    }
+                    .animation(.spring(duration: 0.6), value: currentPhaseIndex)
+
+                    // Connector line (not after last)
+                    if i < allPhases.count - 1 {
+                        Rectangle()
+                            .fill(i < currentPhaseIndex
+                                  ? LinearGradient(colors: [phaseColor(phase), phaseColor(allPhases[i+1])],
+                                                   startPoint: .leading, endPoint: .trailing)
+                                  : LinearGradient(colors: [Color.white.opacity(0.1), Color.white.opacity(0.1)],
+                                                   startPoint: .leading, endPoint: .trailing))
+                            .frame(height: 2)
+                            .frame(maxWidth: .infinity)
+                            .animation(.easeInOut(duration: 0.8), value: currentPhaseIndex)
+                    }
+                }
             }
         }
         .frame(height: 20)
-        .padding(.horizontal, 16)
+        .overlay(
+            // Phase label above current node
+            GeometryReader { geo in
+                let nodeCount = allPhases.count
+                let spacing   = geo.size.width / CGFloat(nodeCount - 1)
+                let x         = CGFloat(currentPhaseIndex) * spacing
+                Text(shortPhase(vm.state.phase))
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundColor(phaseColor(vm.state.phase))
+                    .position(x: min(max(x, 20), geo.size.width - 20), y: -6)
+            }
+        )
+        .padding(.top, 4)
+    }
+
+    func shortPhase(_ p: String) -> String {
+        switch p {
+        case "PREFLIGHT": return "PRE"
+        case "TAKEOFF":   return "T/O"
+        case "APPROACH":  return "APP"
+        default: return p
+        }
     }
 
     // MARK: - Phase Pill
     var phasePill: some View {
         Text(vm.state.phase)
-            .font(.system(size: 9, weight: .heavy))
-            .kerning(1.2)
+            .font(.system(size: 9, weight: .heavy)).kerning(1.2)
             .foregroundColor(phaseColor(vm.state.phase))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .padding(.horizontal, 8).padding(.vertical, 4)
             .background(phaseColor(vm.state.phase).opacity(0.18))
             .clipShape(Capsule())
             .overlay(Capsule().stroke(phaseColor(vm.state.phase).opacity(0.4), lineWidth: 1))
@@ -158,29 +216,29 @@ struct ContentView: View {
                 }
             }
         }
-        .background(Color(hex: "#0B0F28"))
+        .background(Color(hex: "#0B0F28").opacity(0.9).background(.ultraThinMaterial))
         .overlay(Rectangle().fill(Color(hex: "#4A9EFF").opacity(0.12)).frame(height: 1), alignment: .top)
     }
 
     let tabs = [
         (icon: "gauge.open.with.lines.needle.33percent", label: "Dashboard"),
-        (icon: "map.fill", label: "Map"),
-        (icon: "clock.fill", label: "Times"),
-        (icon: "gearshape.fill", label: "Settings")
+        (icon: "map.fill",      label: "Map"),
+        (icon: "clock.fill",    label: "Times"),
+        (icon: "gearshape.fill",label: "Settings")
     ]
 }
 
-// MARK: - Helpers
+// MARK: - Phase Color Helper
 func phaseColor(_ phase: String) -> Color {
     switch phase {
-    case "TAXI":     return Color(hex: "#F59E0B")
-    case "TAKEOFF":  return Color(hex: "#A855F7")
-    case "CLIMB":    return Color(hex: "#4A9EFF")
-    case "CRUISE":   return Color(hex: "#22D3A5")
-    case "DESCENT":  return Color(hex: "#F59E0B")
-    case "APPROACH": return Color(hex: "#EF4444")
-    case "LANDED":   return Color(hex: "#22D3A5")
-    default:         return Color(hex: "#4A9EFF")
+    case "TAXI":      return Color(hex: "#F59E0B")
+    case "TAKEOFF":   return Color(hex: "#A855F7")
+    case "CLIMB":     return Color(hex: "#4A9EFF")
+    case "CRUISE":    return Color(hex: "#22D3A5")
+    case "DESCENT":   return Color(hex: "#F59E0B")
+    case "APPROACH":  return Color(hex: "#EF4444")
+    case "LANDED":    return Color(hex: "#22D3A5")
+    default:          return Color(hex: "#4A9EFF")
     }
 }
 

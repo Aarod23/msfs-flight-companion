@@ -1,5 +1,9 @@
 import Foundation
 import Combine
+import UIKit
+import WidgetKit
+import ActivityKit
+
 
 // MARK: - Data Models
 
@@ -67,6 +71,9 @@ struct FlightState: Codable {
     var onGround: Bool
     var fuel: Double
     var engineOn: Bool
+    // Wind data (from SimConnect AMBIENT WIND VELOCITY / DIRECTION)
+    var windSpeed: Double
+    var windDir: Double    // degrees true
     var simbrief: SimBriefPlan?
     var atd: Double?        // unix ms
     var blockOn: Double?
@@ -74,8 +81,22 @@ struct FlightState: Codable {
     var stale: Bool?
     var serverTime: Double?
 
-    // Computed
+    // MARK: - Computed
     var phase_display: String { phase }
+
+    /// Headwind component in knots (positive = headwind, negative = tailwind)
+    var headwindKt: Double {
+        guard windSpeed > 0, gs > 0 else { return 0 }
+        let relAngle = (windDir - hdg + 360).truncatingRemainder(dividingBy: 360)
+        return windSpeed * cos(relAngle * .pi / 180)
+    }
+
+    /// Crosswind component magnitude in knots
+    var crosswindKt: Double {
+        guard windSpeed > 0 else { return 0 }
+        let relAngle = (windDir - hdg + 360).truncatingRemainder(dividingBy: 360)
+        return abs(windSpeed * sin(relAngle * .pi / 180))
+    }
 
     var etaDate: Date? {
         guard gs > 30, let sb = simbrief else { return nil }
@@ -117,7 +138,8 @@ class FlightViewModel: ObservableObject {
     @Published var state: FlightState = FlightState(
         connected: false, phase: "PREFLIGHT",
         lat: 0, lon: 0, alt: 0, ias: 0, tas: 0,
-        gs: 0, hdg: 0, vs: 0, onGround: true, fuel: 0, engineOn: false
+        gs: 0, hdg: 0, vs: 0, onGround: true, fuel: 0, engineOn: false,
+        windSpeed: 0, windDir: 0
     )
     @Published var isConnecting = false
     @Published var lastKnownPhase = "PREFLIGHT"
@@ -142,6 +164,11 @@ class FlightViewModel: ObservableObject {
     }
 
     private func handlePhaseChange(from prev: String, to next: String) {
+        // Haptic feedback
+        let style: UIImpactFeedbackGenerator.FeedbackStyle = next == "LANDED" ? .heavy :
+            (next == "TAKEOFF" || next == "APPROACH") ? .medium : .light
+        UIImpactFeedbackGenerator(style: style).impactOccurred()
+
         let messages: [String: (String, String)] = [
             "TAKEOFF":  ("✈️ Takeoff Roll", "Aircraft is accelerating for takeoff"),
             "CLIMB":    ("🔝 Climbing", "Climbing to cruise altitude"),
@@ -164,9 +191,38 @@ class FlightViewModel: ObservableObject {
 
     private func updateLiveActivity(_ s: FlightState) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-        // Live Activity update is handled by LiveActivityManager
         LiveActivityManager.shared.update(state: s)
+        writeWidgetData(s)
     }
+
+    /// Push current state to shared UserDefaults so the lock screen widget can read it
+    private func writeWidgetData(_ s: FlightState) {
+        let defaults = UserDefaults(suiteName: "group.com.aarod23.FlightCompanion") ?? .standard
+        defaults.set(s.phase,   forKey: "wg_phase")
+        defaults.set(s.simbrief?.origin.icao      ?? "——", forKey: "wg_origin")
+        defaults.set(s.simbrief?.destination.icao ?? "——", forKey: "wg_dest")
+        defaults.set(s.progressPercent,            forKey: "wg_progress")
+        defaults.set(s.connected,                  forKey: "wg_connected")
+
+        // ETA string
+        if let eta = s.etaDate {
+            let f = DateFormatter(); f.dateFormat = "HH:mm"; f.timeZone = TimeZone(identifier: "UTC")
+            defaults.set(f.string(from: eta) + "Z", forKey: "wg_eta")
+        } else {
+            defaults.set("——:——Z", forKey: "wg_eta")
+        }
+
+        // NM remaining
+        if let sb = s.simbrief, s.lat != 0 {
+            let nm = greatCircleDistanceNm(lat1: s.lat, lon1: s.lon,
+                                           lat2: sb.destination.lat, lon2: sb.destination.lon)
+            defaults.set(Int(nm), forKey: "wg_nm")
+        }
+
+        // Tell WidgetKit to reload
+        WidgetCenter.shared.reloadTimelines(ofKind: "FlightLockScreenWidget")
+    }
+
 
     func startLiveActivity() {
         LiveActivityManager.shared.start(state: state)

@@ -11,6 +11,7 @@ let traffic = [];
 let map     = null;
 let userMarker = null;
 let trailCoords = [];
+let trailSeeded = false;   // true once we've seeded trail from origin
 let satelliteMode = true;
 let followAircraft = true;
 
@@ -408,16 +409,49 @@ function updateTrail(lat, lon) {
   if (src) src.setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: trailCoords } });
 }
 
+// ── Geodesic helpers ───────────────────────────────────────────────────
+// Interpolate N intermediate points along great-circle between two coords
+function geodesicLine([lon1, lat1], [lon2, lat2], steps = 50) {
+  const toRad = d => d * Math.PI / 180;
+  const toDeg = r => r * 180 / Math.PI;
+  const φ1 = toRad(lat1), λ1 = toRad(lon1);
+  const φ2 = toRad(lat2), λ2 = toRad(lon2);
+  const d = 2 * Math.asin(Math.sqrt(
+    Math.sin((φ2-φ1)/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin((λ2-λ1)/2)**2
+  ));
+  if (d < 0.0001) return [[lon1, lat1], [lon2, lat2]];
+  const pts = [];
+  for (let i = 0; i <= steps; i++) {
+    const f = i / steps;
+    const A = Math.sin((1-f)*d) / Math.sin(d);
+    const B = Math.sin(f*d)    / Math.sin(d);
+    const x = A*Math.cos(φ1)*Math.cos(λ1) + B*Math.cos(φ2)*Math.cos(λ2);
+    const y = A*Math.cos(φ1)*Math.sin(λ1) + B*Math.cos(φ2)*Math.sin(λ2);
+    const z = A*Math.sin(φ1)              + B*Math.sin(φ2);
+    pts.push([toDeg(Math.atan2(y, x)), toDeg(Math.atan2(z, Math.sqrt(x*x + y*y)))]);
+  }
+  return pts;
+}
+
 // ── Route from SimBrief ────────────────────────────────────────────────
 function drawRoute(simbrief) {
-  const wps = simbrief.waypoints || [];
+  const wps  = simbrief.waypoints || [];
   const orig = simbrief.origin;
   const dest = simbrief.destination;
 
+  // Build raw coordinate list: origin → waypoints → destination
+  const rawCoords = [];
+  if (orig?.lat && orig?.lon) rawCoords.push([orig.lon, orig.lat]);
+  wps.filter(w => w.lat && w.lon).forEach(w => rawCoords.push([w.lon, w.lat]));
+  if (dest?.lat && dest?.lon) rawCoords.push([dest.lon, dest.lat]);
+
+  // Densify each segment along great-circle arc (50 pts per segment)
   const coords = [];
-  if (orig?.lat && orig?.lon) coords.push([orig.lon, orig.lat]);
-  wps.filter(w => w.lat && w.lon).forEach(w => coords.push([w.lon, w.lat]));
-  if (dest?.lat && dest?.lon) coords.push([dest.lon, dest.lat]);
+  for (let i = 0; i < rawCoords.length - 1; i++) {
+    const seg = geodesicLine(rawCoords[i], rawCoords[i + 1], 50);
+    if (i === 0) coords.push(...seg);
+    else         coords.push(...seg.slice(1)); // avoid duplicate junction point
+  }
 
   const routeSrc = map.getSource('route');
   if (routeSrc) routeSrc.setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: coords } });
@@ -433,14 +467,22 @@ function drawRoute(simbrief) {
 
   // Airport markers
   const apFeatures = [];
-  if (orig?.lat) apFeatures.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [orig.lon, orig.lat] }, properties: { type: 'origin', icao: orig.icao } });
+  if (orig?.lat) apFeatures.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [orig.lon, orig.lat] }, properties: { type: 'origin',      icao: orig.icao } });
   if (dest?.lat) apFeatures.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [dest.lon, dest.lat] }, properties: { type: 'destination', icao: dest.icao } });
   const apSrc = map.getSource('airports');
   if (apSrc) apSrc.setData({ type: 'FeatureCollection', features: apFeatures });
 
+  // Seed trail from departure airport (so green trail starts at origin)
+  if (!trailSeeded && orig?.lat && orig?.lon) {
+    trailCoords = [[orig.lon, orig.lat]];
+    trailSeeded = true;
+    const src = map.getSource('trail');
+    if (src) src.setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: trailCoords } });
+  }
+
   // Fit map to route
-  if (coords.length >= 2) {
-    const bounds = coords.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(coords[0], coords[0]));
+  if (rawCoords.length >= 2) {
+    const bounds = rawCoords.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(rawCoords[0], rawCoords[0]));
     map.fitBounds(bounds, { padding: 120, duration: 1200 });
   }
 }

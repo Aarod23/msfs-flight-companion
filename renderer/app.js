@@ -401,12 +401,88 @@ function updateUserMarker(lat, lon, heading) {
   }
 }
 
-// ── Trail ──────────────────────────────────────────────────────────────
-function updateTrail(lat, lon) {
-  trailCoords.push([lon, lat]);
-  if (trailCoords.length > 2000) trailCoords.shift();
-  const src = map.getSource('trail');
-  if (src) src.setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: trailCoords } });
+// ── Great-circle distance (nm) ─────────────────────────────────────────
+function gcDistNm(lat1, lon1, lat2, lon2) {
+  const R = 3440.065;
+  const toRad = d => d * Math.PI / 180;
+  const φ1 = toRad(lat1), φ2 = toRad(lat2);
+  const Δφ = toRad(lat2 - lat1), Δλ = toRad(lon2 - lon1);
+  const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// ── Waypoint-snapped trail ─────────────────────────────────────────────
+// Builds the flown trail by walking SimBrief waypoints up to the aircraft
+// position, then appending the live GPS fix — so the trail follows the
+// planned great-circle route rather than a straight GPS line.
+function updateWaypointTrail(lat, lon, simbrief) {
+  if (!simbrief) return;
+
+  const orig = simbrief.origin;
+  const dest = simbrief.destination;
+  const wps  = simbrief.waypoints || [];
+
+  // Full ordered node list: origin → waypoints → destination
+  const nodes = [];
+  if (orig?.lat && orig?.lon) nodes.push({ lat: orig.lat, lon: orig.lon });
+  wps.filter(w => w.lat && w.lon).forEach(w => nodes.push({ lat: w.lat, lon: w.lon }));
+  if (dest?.lat && dest?.lon) nodes.push({ lat: dest.lat, lon: dest.lon });
+  if (nodes.length < 2) return;
+
+  // Cumulative great-circle distances from origin for each node
+  const cumDist = [0];
+  for (let i = 1; i < nodes.length; i++) {
+    cumDist.push(cumDist[i-1] + gcDistNm(nodes[i-1].lat, nodes[i-1].lon, nodes[i].lat, nodes[i].lon));
+  }
+  const totalDist = cumDist[cumDist.length - 1];
+
+  // How far along the route is the aircraft?
+  const aircraftDist = gcDistNm(orig.lat, orig.lon, lat, lon);
+  // Clamp to total (in case of slight overshoot)
+  const flownDist = Math.min(aircraftDist, totalDist);
+
+  // Find the last node index that has been passed
+  let lastPassedIdx = 0;
+  for (let i = 0; i < cumDist.length; i++) {
+    if (cumDist[i] <= flownDist) lastPassedIdx = i;
+  }
+
+  // ── Flown trail: origin → passed nodes → current aircraft position ──
+  const flownNodes = nodes.slice(0, lastPassedIdx + 1);
+  const flownCoords = [];
+  for (let i = 0; i < flownNodes.length - 1; i++) {
+    const seg = geodesicLine([flownNodes[i].lon, flownNodes[i].lat],
+                             [flownNodes[i+1].lon, flownNodes[i+1].lat], 30);
+    if (i === 0) flownCoords.push(...seg);
+    else         flownCoords.push(...seg.slice(1));
+  }
+  // Geodesic segment from last passed node to live aircraft position
+  if (flownNodes.length > 0) {
+    const last = flownNodes[flownNodes.length - 1];
+    const toAc = geodesicLine([last.lon, last.lat], [lon, lat], 20);
+    if (flownCoords.length > 0) flownCoords.push(...toAc.slice(1));
+    else                        flownCoords.push(...toAc);
+  }
+
+  const trailSrc = map.getSource('trail');
+  if (trailSrc && flownCoords.length >= 2) {
+    trailSrc.setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: flownCoords } });
+  }
+
+  // ── Remaining route: current aircraft position → remaining nodes → dest ──
+  const remainingNodes = [{ lat, lon }, ...nodes.slice(lastPassedIdx + 1)];
+  const remainCoords = [];
+  for (let i = 0; i < remainingNodes.length - 1; i++) {
+    const seg = geodesicLine([remainingNodes[i].lon, remainingNodes[i].lat],
+                             [remainingNodes[i+1].lon, remainingNodes[i+1].lat], 30);
+    if (i === 0) remainCoords.push(...seg);
+    else         remainCoords.push(...seg.slice(1));
+  }
+
+  const routeSrc = map.getSource('route');
+  if (routeSrc && remainCoords.length >= 2) {
+    routeSrc.setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: remainCoords } });
+  }
 }
 
 // ── Geodesic helpers ───────────────────────────────────────────────────
@@ -658,7 +734,8 @@ function updateUI(s) {
   // Map: user aircraft
   if (s.lat && s.lon && map) {
     updateUserMarker(s.lat, s.lon, s.hdg || 0);
-    updateTrail(s.lat, s.lon);
+    // Use waypoint-snapped trail (follows SimBrief geodesic route)
+    if (s.simbrief) updateWaypointTrail(s.lat, s.lon, s.simbrief);
     if (followAircraft) {
       map.easeTo({ center: [s.lon, s.lat], duration: 1000, essential: false });
     }
@@ -675,9 +752,8 @@ document.getElementById('btn-satellite').addEventListener('click', () => {
     addMapLayers();
     // Redraw route if needed
     if (state?.simbrief) drawRoute(state.simbrief);
-    // Redraw trail
-    const src = map.getSource('trail');
-    if (src) src.setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: trailCoords } });
+    // Redraw trail using waypoint-snapped approach
+    if (state?.lat && state?.simbrief) updateWaypointTrail(state.lat, state.lon, state.simbrief);
     // Redraw traffic
     if (traffic.length) updateTrafficLayer(traffic);
     routeDrawn = state?.simbrief ? true : false;

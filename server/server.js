@@ -7,7 +7,7 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
-const API_KEY = process.env.RELAY_API_KEY || 'flight-companion-key';
+const API_KEY = process.env.RELAY_API_KEY || 'flightapp2024';
 const PORT = process.env.PORT || 3001;
 
 app.use(cors());

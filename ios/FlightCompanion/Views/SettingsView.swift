@@ -29,7 +29,7 @@ struct SettingsView: View {
                 settingsCard(title: "RELAY SERVER") {
                     VStack(alignment: .leading, spacing: 12) {
                         settingsField(label: "Server URL", placeholder: "https://your-relay.onrender.com", text: $editURL)
-                        settingsField(label: "API Key",    placeholder: "flight-companion-key",            text: $editKey)
+                        settingsField(label: "API Key",    placeholder: "flightapp2024",            text: $editKey)
 
                         Text("Deploy the relay server from the FlightApp/server folder to Render.com (free). Your PC desktop app sends data there, and this app reads it.")
                             .font(.system(size: 11))

@@ -184,8 +184,8 @@ app.whenReady().then(() => {
   simBridge.start();
 
   // Start relay client
-  const relayUrl = store.get('relayUrl', 'https://msfs-relay.onrender.com');
-  const relayKey = store.get('relayKey', 'default-key');
+  const relayUrl = store.get('relayUrl', 'https://msfs-flight-relay.onrender.com');
+  const relayKey = store.get('relayKey', 'flightapp2024');
   relayClient = new RelayClient(relayUrl, relayKey);
 
   // Broadcast state every 5s even if no new sim data

@@ -190,7 +190,7 @@ class FlightViewModel: ObservableObject {
     }
 
     private func updateLiveActivity(_ s: FlightState) {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        // LiveActivityManager handles authorization check internally
         LiveActivityManager.shared.update(state: s)
         writeWidgetData(s)
     }
@@ -225,6 +225,6 @@ class FlightViewModel: ObservableObject {
 
 
     func startLiveActivity() {
-        LiveActivityManager.shared.start(state: state)
+        _ = LiveActivityManager.shared.start(state: state)
     }
 }

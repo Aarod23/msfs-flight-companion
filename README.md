@@ -34,7 +34,7 @@ Launches to system tray. Connect MSFS 2024, then click "Load SimBrief Plan".
 3. Build command: `npm install`
 4. Start command: `node server.js`
 5. Set env var `RELAY_API_KEY` to any secret string
-6. Copy the deployed URL (e.g. `https://msfs-relay.onrender.com`)
+6. Copy the deployed URL (e.g. `https://msfs-flight-relay.onrender.com`)
 
 ### 3. iOS App (on Mac via Xcode)
 1. Open `ios/FlightCompanion/` in Xcode
